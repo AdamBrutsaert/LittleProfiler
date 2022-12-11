@@ -15,7 +15,8 @@
 
 typedef struct {
     char const *name;
-    uint64_t begin;
+    int64_t ns;
+    int64_t s;
 } __profiler_t;
 
 static __profiler_t *__PROFILERS = NULL;
@@ -42,14 +43,15 @@ static inline void profiler_push(char const *name, char const *file,
     }
     clock_gettime(CLOCK_REALTIME, &spec);
     __PROFILERS[__PROFILER_LENGTH].name = name;
-    __PROFILERS[__PROFILER_LENGTH].begin = spec.tv_nsec;
+    __PROFILERS[__PROFILER_LENGTH].ns = spec.tv_nsec;
+    __PROFILERS[__PROFILER_LENGTH].s = spec.tv_sec;
     __PROFILER_LENGTH++;
 }
 
 static inline void profiler_pop(void)
 {
     struct timespec spec;
-    uint64_t elapsed;
+    int64_t elapsed;
 
     clock_gettime(CLOCK_REALTIME, &spec);
     if (__PROFILER_ERRORS) {
@@ -59,8 +61,10 @@ static inline void profiler_pop(void)
     if (!__PROFILER_LENGTH)
         return;
     __PROFILER_LENGTH--;
-    elapsed = spec.tv_nsec - __PROFILERS[__PROFILER_LENGTH].begin;
-    fprintf(stderr, "[%s] Took %gs, %gms (%luns)\n",
+    elapsed = spec.tv_sec * 1000000000 + spec.tv_nsec
+        - (__PROFILERS[__PROFILER_LENGTH].s * 1000000000
+            + __PROFILERS[__PROFILER_LENGTH].ns);
+    fprintf(stderr, "[%s] Took %gs, %gms (%ldns)\n",
         __PROFILERS[__PROFILER_LENGTH].name, elapsed / 1000000000.0f,
             elapsed / 1000000.0f, elapsed);
     if (!__PROFILER_LENGTH)
