@@ -4,11 +4,15 @@ This is a small header-only profiler that measures execution time of code.
 
 ## How to use it
 
-Just copy and paste the [`profiler.h`](profiler.h) header file in your project
-and you're ready to go!
+Just copy and paste the [`profiler.h`](profiler.h) header file in your project.  
+Then you only need to include the header in the source files (`.c`) where you
+want to use it.  
+As simple as that.
 
 ### Profiling a function
 ```c
+#include "profiler.h"
+
 void func(void)
 {
     PROFILE_FUNC();
@@ -19,6 +23,8 @@ void func(void)
 
 ### Profiling a section
 ```c
+#include "profiler.h"
+
 void func(void)
 {
     // ...
