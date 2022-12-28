@@ -7,7 +7,12 @@
 
 #pragma once
 
-#define _POSIX_C_SOURCE 200809L
+#if defined(_WIN32) || defined(_WIN64)
+    #include <windows.h>
+#else
+    #define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <time.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,6 +31,39 @@ static uint64_t __PROFILER_CAPACITY = 0;
 static uint64_t __PROFILER_LENGTH = 0;
 static uint64_t __PROFILER_ERRORS = 0;
 
+#if defined(_WIN32) || defined(_WIN64)
+
+static BOOL g_first_time = 1;
+static LARGE_INTEGER g_counts_per_sec;
+
+static inline int clock_gettime(int, struct timespec *ct)
+{
+    LARGE_INTEGER count;
+
+    if (g_first_time)
+    {
+        g_first_time = 0;
+
+        if (0 == QueryPerformanceFrequency(&g_counts_per_sec))
+        {
+            g_counts_per_sec.QuadPart = 0;
+        }
+    }
+
+    if ((NULL == ct) || (g_counts_per_sec.QuadPart <= 0) ||
+            (0 == QueryPerformanceCounter(&count)))
+    {
+        return -1;
+    }
+
+    ct->tv_sec = count.QuadPart / g_counts_per_sec.QuadPart;
+    ct->tv_nsec = ((count.QuadPart % g_counts_per_sec.QuadPart) * BILLION) / g_counts_per_sec.QuadPart;
+
+    return 0;
+}
+
+#endif
+
 static inline void profiler_push(char const *name, char const *file,
     uint64_t line)
 {
@@ -33,7 +71,7 @@ static inline void profiler_push(char const *name, char const *file,
     __profiler_t *tmp;
 
     if (__PROFILER_LENGTH >= __PROFILER_CAPACITY) {
-        tmp = realloc(__PROFILERS, (__PROFILER_CAPACITY * 2
+        tmp = (__profiler_t *)realloc(__PROFILERS, (__PROFILER_CAPACITY * 2
             + !__PROFILER_CAPACITY) * sizeof(__profiler_t));
         if (!tmp) {
             fputs("Error: how is it possible? Couldn't reallocate!\n", stderr);
@@ -74,7 +112,7 @@ static inline void profiler_pop(void)
         __PROFILERS[__PROFILER_LENGTH].name, elapsed / 1000000000.0f,
             elapsed / 1000000.0f, elapsed);
     if (!__PROFILER_LENGTH)
-        free(__PROFILERS);
+        free((void *)__PROFILERS);
 }
 
 #define PROFILE_BEGIN(name) profiler_push(name, __FILE__, __LINE__)
